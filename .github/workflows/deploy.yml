@@ -1,0 +1,59 @@
+name: Build and Push to GCP Artifact Registry
+
+on:
+  push:
+    branches: [ "main" ]
+
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    env:
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_ARTIFACT_LOCATION: ${{ vars.GCP_ARTIFACT_LOCATION }}
+      GCP_ARTIFACT_REPO: ${{ vars.GCP_ARTIFACT_REPO }}
+      IMAGE_NAME: caller
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up gcloud auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${GCP_ARTIFACT_LOCATION}-docker.pkg.dev --quiet
+
+      - name: Compute image tags (v1.timestamp + latest)
+        run: |
+          IMAGE_BASE=${GCP_ARTIFACT_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GCP_ARTIFACT_REPO}/${IMAGE_NAME}
+
+          # sortable UTC timestamp
+          TS=$(date -u +'%Y%m%d-%H%M%S')
+
+          IMAGE_V1_TS="${IMAGE_BASE}:v1.${TS}"
+          IMAGE_LATEST="${IMAGE_BASE}:latest"
+
+          echo "TS=$TS" >> $GITHUB_ENV
+          echo "IMAGE_V1_TS=$IMAGE_V1_TS" >> $GITHUB_ENV
+          echo "IMAGE_LATEST=$IMAGE_LATEST" >> $GITHUB_ENV
+
+          echo "Building image with tags:"
+          echo "  $IMAGE_V1_TS"
+          echo "  $IMAGE_LATEST"
+
+      - name: Build Docker image (v1.timestamp + latest)
+        run: |
+          docker build -t "$IMAGE_V1_TS" -t "$IMAGE_LATEST" .
+
+      - name: Push Docker image (v1.timestamp + latest)
+        run: |
+          echo "Pushing $IMAGE_V1_TS"
+          docker push "$IMAGE_V1_TS"
+
+          echo "Pushing $IMAGE_LATEST"
+          docker push "$IMAGE_LATEST"
