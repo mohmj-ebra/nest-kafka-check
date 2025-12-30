@@ -13,7 +13,7 @@ jobs:
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       GCP_ARTIFACT_LOCATION: ${{ vars.GCP_ARTIFACT_LOCATION }}
       GCP_ARTIFACT_REPO: ${{ vars.GCP_ARTIFACT_REPO }}
-      IMAGE_NAME: caller
+      IMAGE_NAME: kafka-test
 
     steps:
       - name: Checkout code
